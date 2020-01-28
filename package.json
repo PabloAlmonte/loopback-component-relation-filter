@@ -1,0 +1,27 @@
+{
+  "name": "loopback-component-relation-filter",
+  "version": "0.0.1",
+  "description": "Advanced Filter for loopback",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "loopback",
+    "filter",
+    "advanced",
+    "loopback",
+    "filter",
+    "relation",
+    "filter",
+    "filter",
+    "object",
+    "in",
+    "loopback"
+  ],
+  "author": "Pablo Almonte",
+  "license": "ISC",
+  "dependencies": {
+    "knex": "^0.20.8"
+  }
+}
