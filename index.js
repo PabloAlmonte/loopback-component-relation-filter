@@ -115,7 +115,7 @@ module.exports = function (App, Config) {
                 case "between": return query[initFun + "Between"](columnName, value);
                 case "inq": return query[initFun + "In"](columnName, value);
                 case "neq": return query[initFun + "Not"](columnName, value);
-                case "nin": return query[initFun + "NotBetween"](columnName, value);
+                case "nin": return query[initFun + "NotIn"](columnName, value);
                 default: return console.error(`Invalid operator: "${operator}" for now only accepted ${validOperators.join(", ")}`);
             }
         }
