@@ -20,7 +20,10 @@
     "loopback"
   ],
   "author": "Pablo Almonte",
-  "license": "ISC",
+  "license": "MIT",
+  "repository": {
+    "url": "https://github.com/PabloAlmonte/loopback-component-relation-filter"
+  },
   "dependencies": {
     "knex": "^0.20.8"
   }
