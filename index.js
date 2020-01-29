@@ -1,53 +1,46 @@
 const knex = require("knex");
-
 module.exports = function (App, Config) {
     const connector = "postgresql";
     const db = knex({client: "pg"});
     const MODELS = App.models;
-    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq"];
+    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq"];
 
-    var model = App.models.CryptoInvoice;
+    // Validate if component is enable
+    if(!Config.enable) return console.warn("Loopback-component-relation-filter is disabled");
 
-    model.find({ order: "currencyPrice asc", include: ["currencyFrom", "currencyTo", "from", "to"], where: {
-        to: {iso3: "DOM"},
-        currencyFrom: {iso3: {inq: ["EUR","BKp"]}},
-        or: [
-            // {currencyTo: {iso3: "USD"}}
-            {from: {firstName: "Andres"}},
-            {from: {mobilePhone: "8262626"}},
-            // {from: {lastName: "Almonte"}},
-            // {and: [
-            //     {from: {firstName: "Andres"}},
-            //     {from: {lastName: "almonte"}},
-            // ]}
-        ]
-    }}, (err, res) => {
-        if (err) return console.error(err);
-        console.log({ res });
+    // Extend query in all models
+    Object.values(MODELS).forEach(model => {
+        model.observe('access', extendQuery);
     });
 
-    model.observe('access', (ctx, next) => {
+    function extendQuery(ctx, next){
         var settings = ctx.Model.definition.settings;
+
+        // Check if the model have this component disabled
+        if(settings.relationFilter && settings.relationFilter.enable == false) return;
+
         var where = ctx.query.where;
         var relationsAlreadyCreated = [];
         try{
             var table = getTableName(ctx.Model);
             var idName = getIdName(ctx.Model).name;
-            var query = db.table(`${table} as maintable`).columns({[idName]: `maintable.${idName}`}).select();
+            var mainQuery = db.table(`${table} as maintable`).columns({[idName]: `maintable.${idName}`}).select();
             
-            decodeObject(where, query);
-
-            // next();
-            console.log({query: query.toQuery()});
+            // add queries
+            decodeObject(where, mainQuery);
+            
+            // Build SQL Query
+            mainQuery.toQuery(); // This is a temp line for fix a bug in knex.
 
             // Execute SQL query
-            ctx.Model.dataSource.connector.execute(query.toQuery(), [], (err, results) => {
+            ctx.Model.dataSource.connector.execute(mainQuery.toQuery(), [], (err, results) => {
                 if(err) console.error("Fatal Error, please report in github", err);
                 else ctx.query.where = {[idName]: {inq: results.map(r => r[idName])}}
                 next();
             });
         }catch(err){
-            console.error({err});
+            console.error("Fatal Error, please report in github", {err});
+            next();
         }
 
         function decodeObject(where, query, isOR = false){
@@ -77,8 +70,7 @@ module.exports = function (App, Config) {
                 // Make Join
                 var alreadyExists = relationsAlreadyCreated.find(r => r.tableName == tableName && r.foreignKey == relation.foreignKey);
                 if(!alreadyExists){
-                    console.log("Sure: ", tableName, nick)
-                    query.join(`${tableName} as ${nick}`, relation.foreignKey.toLowerCase(), `${nick}.${tableIdName}`);  
+                    mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.foreignKey.toLowerCase()} = "${nick}"."${tableIdName}"`);  
                     relationsAlreadyCreated.push({tableName, nick, foreignKey: relation.foreignKey});
                 }else {
                     nick = alreadyExists.nick
@@ -106,7 +98,7 @@ module.exports = function (App, Config) {
                     value = _value[operator];
                 }
             }
-        
+            
             applyOperatorOperation(operator, columnName, value, query, isOR);
         }
     
@@ -125,18 +117,18 @@ module.exports = function (App, Config) {
                 case "lte": return query[initFun](columnName, "<=", value);
                 case "between": return query[initFun + "Between"](columnName, value);
                 case "inq": return query[initFun + "In"](columnName, value);
+                case "neq": return query[initFun + "Not"](columnName, value);
                 default: return console.error(`Invalid operator: "${operator}" for now only accepted ${validOperators.join(", ")}`);
             }
         }
-    });
-
+    }
 
     function getTableName(model){
         try{
             var settings = model.definition.settings;
             return settings[connector].table 
         }catch(err){
-            model.modelName;
+            return model.modelName;
         }
     }
 
