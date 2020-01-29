@@ -3,7 +3,7 @@ module.exports = function (App, Config) {
     const connector = "postgresql";
     const db = knex({client: "pg"});
     const MODELS = App.models;
-    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq"];
+    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin"];
 
     // Validate if component is enable
     if(Config.disabled) return console.warn("Loopback-component-relation-filter is disabled");
@@ -24,7 +24,7 @@ module.exports = function (App, Config) {
             var mainQuery = db.table(`${table} as maintable`).columns({[idName]: `maintable.${idName}`}).select();
             
             // add queries
-            decodeObject(where, mainQuery);
+            if(where) decodeObject(where, mainQuery);
             
             // Build SQL Query
             mainQuery.toQuery(); // This is a temp line for fix a bug in knex.
@@ -115,6 +115,7 @@ module.exports = function (App, Config) {
                 case "between": return query[initFun + "Between"](columnName, value);
                 case "inq": return query[initFun + "In"](columnName, value);
                 case "neq": return query[initFun + "Not"](columnName, value);
+                case "nin": return query[initFun + "NotBetween"](columnName, value);
                 default: return console.error(`Invalid operator: "${operator}" for now only accepted ${validOperators.join(", ")}`);
             }
         }
@@ -130,8 +131,11 @@ module.exports = function (App, Config) {
     }
 
     function getIdName(model){
-        var ids = model.definition._ids[0];
-        return ids
+        try{
+            return model.definition._ids[0];
+        }catch(err){
+            return {name: "id"}
+        }
     }
 
     function randomNumber(){
