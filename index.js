@@ -3,7 +3,7 @@ module.exports = function (App, Config) {
     const connector = "postgresql";
     const db = knex({client: "pg"});
     const MODELS = App.models;
-    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin"];
+    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like"];
 
     // Validate if component is enable
     if(Config.disabled) return console.warn("Loopback-component-relation-filter is disabled");
@@ -116,6 +116,7 @@ module.exports = function (App, Config) {
                 case "inq": return query[initFun + "In"](columnName, value);
                 case "neq": return query[initFun + "Not"](columnName, value);
                 case "nin": return query[initFun + "NotIn"](columnName, value);
+                case "like": return query[initFun](columnName, "like", value);
                 default: return console.error(`Invalid operator: "${operator}" for now only accepted ${validOperators.join(", ")}`);
             }
         }
