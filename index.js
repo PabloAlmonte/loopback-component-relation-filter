@@ -143,6 +143,6 @@ module.exports = function (App, Config) {
     }
 
     function getSettingsOfModel(model){
-        return Object.assign(model.definition.settings.relationFilter || {}, Config);
+        return model.definition.settings.relationFilter || Config;
     }
 }
