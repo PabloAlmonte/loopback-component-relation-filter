@@ -6,19 +6,16 @@ module.exports = function (App, Config) {
     const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq"];
 
     // Validate if component is enable
-    if(!Config.enable) return console.warn("Loopback-component-relation-filter is disabled");
+    if(Config.disabled) return console.warn("Loopback-component-relation-filter is disabled");
 
     // Extend query in all models
     Object.values(MODELS).forEach(model => {
-        model.observe('access', extendQuery);
+        var settings = getSettingsOfModel(model);
+        if(settings.enable) model.observe('access', extendQuery);
     });
 
     function extendQuery(ctx, next){
         var settings = ctx.Model.definition.settings;
-
-        // Check if the model have this component disabled
-        if(settings.relationFilter && settings.relationFilter.enable == false) return;
-
         var where = ctx.query.where;
         var relationsAlreadyCreated = [];
         try{
@@ -58,7 +55,7 @@ module.exports = function (App, Config) {
         }
     
         function reviewObject(key, value, query, isOR){
-            if(settings.relations[key]){
+            if(settings.relations && settings.relations[key]){
                 var relation = settings.relations[key];
                 if(relation.type != "belongsTo") return;
     
@@ -128,7 +125,7 @@ module.exports = function (App, Config) {
             var settings = model.definition.settings;
             return settings[connector].table 
         }catch(err){
-            return model.modelName;
+            return model.modelName.toLowerCase();
         }
     }
 
@@ -139,5 +136,9 @@ module.exports = function (App, Config) {
 
     function randomNumber(){
         return ((Date.now() * Math.floor(Math.random() * 500)) + "").substr(-4);
+    }
+
+    function getSettingsOfModel(model){
+        return Object.assign(model.definition.settings.relationFilter || {}, Config);
     }
 }
