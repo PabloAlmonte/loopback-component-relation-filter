@@ -48,7 +48,7 @@ module.exports = function (App, Config) {
                 if(["and", "or"].includes(key)){
                     query.where(function(){
                         where[key].forEach(obj => {
-                            decodeObject(obj, this, true);
+                            decodeObject(obj, this, key == "or");
                         });
                     });
                 }else {
