@@ -32,7 +32,7 @@ Enable/disable searching for a specific model in your `model-config.json` (or al
 
 ####  [Usage](https://github.com/PabloAlmonte/loopback-component-relation-filter#Usage "Usage")
 
-The component uses Loopback's where query to create a big sql query against the database. Enable the filtering on your model and nest your where queries. ** The component supports a majority of the documented operators except near and regexp. **
+The component uses Loopback's where query to create a big sql query against the database. Enable the filtering on your model and nest your where queries. **The component supports a majority of the documented operators except `near` and `regexp`.**
 
 ```javascript
 // e.g. load all books having an author which is employed by a certain publisher and is older than
