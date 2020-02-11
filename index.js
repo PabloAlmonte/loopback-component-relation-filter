@@ -4,6 +4,7 @@ module.exports = function (App, Config) {
     const db = knex({client: "pg"});
     const MODELS = App.models;
     const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like"];
+    const relationsSupported = ["belongsTo", "hasOne"];
 
     // Validate if component is enable
     if(Config.disabled) return console.warn("Loopback-component-relation-filter is disabled");
@@ -31,7 +32,7 @@ module.exports = function (App, Config) {
 
             // Execute SQL query
             ctx.Model.dataSource.connector.execute(mainQuery.toQuery(), [], (err, results) => {
-                if(err) console.error("Fatal Error, please report in github", err);
+                if(err) console.error("Fatal Error, please report in github", {err});
                 else ctx.query.where = {[idName]: {inq: results.map(r => r[idName])}}
                 next();
             });
@@ -57,17 +58,27 @@ module.exports = function (App, Config) {
         function reviewObject(key, value, query, isOR){
             if(settings.relations && settings.relations[key]){
                 var relation = settings.relations[key];
-                if(relation.type != "belongsTo") return;
+                if(!relationsSupported.includes(relation.type)) return console.warn("Relation not supported, this component only support: " + relationsSupported);
     
                 var modelRelation = MODELS[relation.model]; 
                 var tableName = getTableName(modelRelation);
-                var tableIdName = relation.primaryKey || getIdName(modelRelation).name;
                 var nick = `second_table_${randomNumber()}`;
-    
+                
                 // Make Join
                 var alreadyExists = relationsAlreadyCreated.find(r => r.tableName == tableName && r.foreignKey == relation.foreignKey);
                 if(!alreadyExists){
-                    mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.foreignKey.toLowerCase()} = "${nick}"."${tableIdName}"`);  
+                    switch (relation.type) {
+                        case "belongsTo":
+                            var tableIdName = relation.primaryKey || getIdName(modelRelation).name;
+                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.foreignKey.toLowerCase()} = "${nick}"."${tableIdName}"`);  
+                            break;
+                        case "hasOne":
+                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.primaryKey || idName} = "${nick}"."${relation.foreignKey.toLowerCase()}"`)
+                            break;
+                        default: return console.warn("Relation not supported, this component only support: " + relationsSupported);
+                    }
+
+                    // Add in the array of relations 
                     relationsAlreadyCreated.push({tableName, nick, foreignKey: relation.foreignKey});
                 }else {
                     nick = alreadyExists.nick
