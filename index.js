@@ -61,7 +61,7 @@ module.exports = function (App, Config) {
     
                 var modelRelation = MODELS[relation.model]; 
                 var tableName = getTableName(modelRelation);
-                var tableIdName = getIdName(modelRelation).name;
+                var tableIdName = relation.primaryKey || getIdName(modelRelation).name;
                 var nick = `second_table_${randomNumber()}`;
     
                 // Make Join
