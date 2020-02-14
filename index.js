@@ -99,7 +99,7 @@ module.exports = function (App, Config) {
             var columnName =  `${tableNick}.${key}`;
 
             // Set Value and Operator
-            if(typeof _value == "object") {
+            if(_value && typeof _value == "object") {
                 var newkey = Object.keys(_value)[0];
                 if(validOperators.includes(newkey)){
                     operator = newkey
