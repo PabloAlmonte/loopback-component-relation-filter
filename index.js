@@ -32,7 +32,7 @@ module.exports = function (App, Config) {
 
             // Execute SQL query
             ctx.Model.dataSource.connector.execute(mainQuery.toQuery(), [], (err, results) => {
-                if(err) console.error("Fatal Error, please report in github", {err, where, query: mainQuery.toQuery()});
+                if(err) console.error("Fatal Error, please report in github", {err});
                 else ctx.query.where = {[idName]: {inq: results.map(r => r[idName])}}
                 next();
             });
@@ -69,11 +69,14 @@ module.exports = function (App, Config) {
                 if(!alreadyExists){
                     switch (relation.type) {
                         case "belongsTo":
-                            var tableIdName = relation.primaryKey || getIdName(modelRelation);
-                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.foreignKey.toLowerCase()} = "${nick}"."${tableIdName}"`);  
+                            var tableIdName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, modelRelation) : getIdName(modelRelation);
+                            var columnName = getRealNameOfColumn(relation.foreignKey, ctx.Model);
+                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${columnName} = "${nick}"."${tableIdName}"`);  
                             break;
                         case "hasOne":
-                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.primaryKey || idName} = "${nick}"."${relation.foreignKey.toLowerCase()}"`)
+                            var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, ctx.Model) : idName;
+                            var foreignKeyName = getRealNameOfColumn(relation.foreignKey, modelRelation);
+                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${columnName} = "${nick}"."${foreignKeyName}"`)
                             break;
                         default: return console.warn("Relation not supported, this component only support: " + relationsSupported);
                     }
