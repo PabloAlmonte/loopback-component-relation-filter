@@ -1,6 +1,6 @@
 const knex = require("knex");
 module.exports = function (App, Config) {
-    const connector = "postgresql";
+    const connector = Config.connector || "postgresql";
     const db = knex({client: "pg"});
     const MODELS = App.models;
     const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like"];
@@ -21,7 +21,7 @@ module.exports = function (App, Config) {
         var relationsAlreadyCreated = [];
         try{
             var table = getTableName(ctx.Model);
-            var idName = getIdName(ctx.Model).name;
+            var idName = getIdName(ctx.Model);
             var mainQuery = db.table(`${table} as maintable`).columns({[idName]: `maintable.${idName}`}).select();
             
             // add queries
@@ -32,7 +32,7 @@ module.exports = function (App, Config) {
 
             // Execute SQL query
             ctx.Model.dataSource.connector.execute(mainQuery.toQuery(), [], (err, results) => {
-                if(err) console.error("Fatal Error, please report in github", {err});
+                if(err) console.error("Fatal Error, please report in github", {err, where, query: mainQuery.toQuery()});
                 else ctx.query.where = {[idName]: {inq: results.map(r => r[idName])}}
                 next();
             });
@@ -69,7 +69,7 @@ module.exports = function (App, Config) {
                 if(!alreadyExists){
                     switch (relation.type) {
                         case "belongsTo":
-                            var tableIdName = relation.primaryKey || getIdName(modelRelation).name;
+                            var tableIdName = relation.primaryKey || getIdName(modelRelation);
                             mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${relation.foreignKey.toLowerCase()} = "${nick}"."${tableIdName}"`);  
                             break;
                         case "hasOne":
@@ -86,17 +86,16 @@ module.exports = function (App, Config) {
                 
                 // Apply filters
                 Object.keys(value).forEach(newKey => {
-                    applyFilter(newKey, value[newKey], query, nick, isOR);
+                    applyFilter(newKey, value[newKey], query, nick, isOR, modelRelation);
                 });
             }else {
-                applyFilter(key, value, query, "maintable", isOR);
+                applyFilter(key, value, query, "maintable", isOR, ctx.Model);
             }
         }
     
-        function applyFilter(key, _value, query, tableNick, isOR){
+        function applyFilter(key, _value, query, tableNick, isOR, model){
             var operator = "=";
             var value = _value;
-            var columnName =  `${tableNick}.${key}`;
 
             // Set Value and Operator
             if(_value && typeof _value == "object") {
@@ -107,12 +106,14 @@ module.exports = function (App, Config) {
                 }
             }
             
-            applyOperatorOperation(operator, columnName, value, query, isOR);
+            applyOperatorOperation(operator, tableNick, key, value, query, isOR, model);
         }
     
-        function applyOperatorOperation(operator, _columnName, value, query, isOR){  
+        function applyOperatorOperation(operator, tableNick,  _columnName, value, query, isOR, model){  
             var initFun = "where";
-            var columnName = _columnName.toLowerCase();
+            var realName = getRealNameOfColumn(_columnName, model);
+            var columnName = `${tableNick}.${realName}`;
+
             if(isOR){
                 initFun = "orWhere";
             } 
@@ -144,9 +145,19 @@ module.exports = function (App, Config) {
 
     function getIdName(model){
         try{
-            return model.definition._ids[0];
+            var mainProperty = model.definition._ids[0]; 
+            if(mainProperty.property && mainProperty.property[connector]) return mainProperty.property[connector].columnName || mainProperty.name;
+            else return mainProperty.name;
         }catch(err){
             return {name: "id"}
+        }
+    }
+
+    function getRealNameOfColumn(columnName, model){
+        try{
+            return model.definition.properties[columnName][connector].columnName;
+        }catch{            
+            return columnName.toLowerCase();
         }
     }
 
