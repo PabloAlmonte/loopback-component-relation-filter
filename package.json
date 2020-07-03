@@ -1,6 +1,6 @@
 {
   "name": "loopback-component-relation-filter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Advanced Filter for loopback",
   "main": "index.js",
   "scripts": {

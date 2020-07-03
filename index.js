@@ -3,7 +3,7 @@ module.exports = function (App, Config) {
     const connector = Config.connector || "postgresql";
     const db = knex({client: "pg"});
     const MODELS = App.models;
-    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like"];
+    const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like", "ilike"];
     const relationsSupported = ["belongsTo", "hasOne"];
 
     // Validate if component is enable
@@ -106,10 +106,9 @@ module.exports = function (App, Config) {
                 if(validOperators.includes(newkey)){
                     operator = newkey
                     value = _value[operator];
-                }
-            }
-            
-            applyOperatorOperation(operator, tableNick, key, value, query, isOR, model);
+                    applyOperatorOperation(operator, tableNick, key, value, query, isOR, model);
+                }else console.warn(`The operator "${newkey}" doesn't support`)
+            }else applyOperatorOperation(operator, tableNick, key, value, query, isOR, model);
         }
     
         function applyOperatorOperation(operator, tableNick,  _columnName, value, query, isOR, model){  
@@ -132,6 +131,7 @@ module.exports = function (App, Config) {
                 case "neq": return query[initFun + "Not"](columnName, value);
                 case "nin": return query[initFun + "NotIn"](columnName, value);
                 case "like": return query[initFun](columnName, "like", value);
+                case "ilike": return query[initFun](columnName, "ilike", value);
                 default: return console.error(`Invalid operator: "${operator}" for now only accepted ${validOperators.join(", ")}`);
             }
         }
