@@ -50,12 +50,12 @@ module.exports = function (App, Config) {
                         });
                     });
                 }else {
-                    reviewObject(key, where[key], query, isOR);
+                    reviewObject(key, where[key], query, isOR, settings, ctx.Model, "maintable");
                 }
             });
         }
     
-        function reviewObject(key, value, query, isOR){
+        function reviewObject(key, value, query, isOR, settings, model, nickParent){
             if(settings.relations && settings.relations[key]){
                 var relation = settings.relations[key];
                 if(!relationsSupported.includes(relation.type)) return console.warn("Relation not supported, this component only support: " + relationsSupported);
@@ -70,13 +70,13 @@ module.exports = function (App, Config) {
                     switch (relation.type) {
                         case "belongsTo":
                             var tableIdName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, modelRelation) : getIdName(modelRelation);
-                            var columnName = getRealNameOfColumn(relation.foreignKey, ctx.Model);
-                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${columnName} = "${nick}"."${tableIdName}"`);  
+                            var columnName = getRealNameOfColumn(relation.foreignKey, model);
+                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "${nickParent}".${columnName} = "${nick}"."${tableIdName}"`);  
                             break;
                         case "hasOne":
-                            var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, ctx.Model) : idName;
+                            var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, model) : idName;
                             var foreignKeyName = getRealNameOfColumn(relation.foreignKey, modelRelation);
-                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "maintable".${columnName} = "${nick}"."${foreignKeyName}"`)
+                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "${nickParent}".${columnName} = "${nick}"."${foreignKeyName}"`)
                             break;
                         default: return console.warn("Relation not supported, this component only support: " + relationsSupported);
                     }
@@ -89,10 +89,12 @@ module.exports = function (App, Config) {
                 
                 // Apply filters
                 Object.keys(value).forEach(newKey => {
-                    applyFilter(newKey, value[newKey], query, nick, isOR, modelRelation);
+                    let lsettings = modelRelation.definition.settings;
+                    if(lsettings.relations && lsettings.relations[newKey]) reviewObject(newKey, value[newKey], query, isOR, lsettings, modelRelation, nick);
+                    else applyFilter(newKey, value[newKey], query, nick, isOR, modelRelation);
                 });
             }else {
-                applyFilter(key, value, query, "maintable", isOR, ctx.Model);
+                applyFilter(key, value, query, "maintable", isOR, model);
             }
         }
     
