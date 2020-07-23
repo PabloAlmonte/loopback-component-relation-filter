@@ -18,6 +18,7 @@ module.exports = function (App, Config) {
     function extendQuery(ctx, next){
         var settings = ctx.Model.definition.settings;
         var where = ctx.query.where;
+        var mainDataSource = ctx.Model.getDataSource().settings;
         var relationsAlreadyCreated = [];
         try{
             var table = getTableName(ctx.Model);
@@ -63,20 +64,37 @@ module.exports = function (App, Config) {
                 var modelRelation = MODELS[relation.model]; 
                 var tableName = getTableName(modelRelation);
                 var nick = `second_table_${randomNumber()}`;
+                var dataSource = modelRelation.getDataSource().settings;
                 
                 // Make Join
                 var alreadyExists = relationsAlreadyCreated.find(r => r.tableName == tableName && r.foreignKey == relation.foreignKey);
                 if(!alreadyExists){
+                    var getDblink = (columnName) => {
+                        let keys = Object.keys(value);
+                        keys.unshift(columnName);
+                        let names = keys.join(",");
+                        let namesWithTypes = keys.reduce((p, c, i) => {
+                            let type = getTypeOfProperty(c, modelRelation);
+                            if(type) p += (i != 0 ? ", " : "") + (c + " " + type)
+                            return p;
+                        }, '');
+
+                        return `join dblink('dbname=${dataSource.database} port=${dataSource.port} host=${dataSource.host} user=${dataSource.user} password=${dataSource.password}', 'SELECT ${names} FROM ${tableName}') as ${nick}(${namesWithTypes})`
+                    }
+
+                    let isDifferentSource = dataSource.connectionString != mainDataSource.connectionString;
+                    let startLine = `join ${tableName} as ${nick}`;
+
                     switch (relation.type) {
                         case "belongsTo":
                             var tableIdName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, modelRelation) : getIdName(modelRelation);
                             var columnName = getRealNameOfColumn(relation.foreignKey, model);
-                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "${nickParent}".${columnName} = "${nick}"."${tableIdName}"`);  
+                            mainQuery.joinRaw(`${isDifferentSource ? getDblink(tableIdName) : startLine} on "${nickParent}".${columnName} = "${nick}"."${tableIdName}"`);  
                             break;
                         case "hasOne":
                             var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, model) : idName;
                             var foreignKeyName = getRealNameOfColumn(relation.foreignKey, modelRelation);
-                            mainQuery.joinRaw(`join ${tableName} as ${nick} on "${nickParent}".${columnName} = "${nick}"."${foreignKeyName}"`)
+                            mainQuery.joinRaw(`${isDifferentSource ? getDblink(foreignKeyName) : startLine} on "${nickParent}".${columnName} = "${nick}"."${foreignKeyName}"`)
                             break;
                         default: return console.warn("Relation not supported, this component only support: " + relationsSupported);
                     }
@@ -145,6 +163,20 @@ module.exports = function (App, Config) {
             return settings[connector].table 
         }catch(err){
             return model.modelName.toLowerCase();
+        }
+    }
+
+    function getTypeOfProperty(property, model){
+        let properties = model.definition.properties;
+        if(properties[property]){
+            let type = properties[property].type.name.toLowerCase();
+            switch (type) {
+                case "number": return "int";
+                case "date": return "timestamptz";
+                case "boolean": return "bool";
+                case "geopoint": return "point";
+                default: return "text"
+            }
         }
     }
 
