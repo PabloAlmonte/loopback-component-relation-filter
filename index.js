@@ -83,7 +83,7 @@ module.exports = function (App, Config) {
                     }
 
                     let isDifferentSource = dataSource.connectionString != mainDataSource.connectionString;
-                    let startLine = `join ${tableName} as ${nick}`;
+                    let startLine = `join "${tableName}" as ${nick}`;
 
                     switch (relation.type) {
                         case "belongsTo":
