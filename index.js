@@ -4,7 +4,7 @@ module.exports = function (App, Config) {
     const db = knex({client: "pg"});
     const MODELS = App.models;
     const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like", "ilike"];
-    const relationsSupported = ["belongsTo", "hasOne"];
+    const relationsSupported = ["belongsTo", "hasOne", "hasMany"];
 
     // Validate if component is enable
     if(Config.disabled) return console.warn("Loopback-component-relation-filter is disabled");
@@ -92,6 +92,7 @@ module.exports = function (App, Config) {
                             mainQuery.joinRaw(`${isDifferentSource ? getDblink(tableIdName) : startLine} on "${nickParent}".${columnName} = "${nick}"."${tableIdName}"`);  
                             break;
                         case "hasOne":
+                        case "hasMany":
                             var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, model) : idName;
                             var foreignKeyName = getRealNameOfColumn(relation.foreignKey, modelRelation);
                             mainQuery.joinRaw(`${isDifferentSource ? getDblink(foreignKeyName) : startLine} on "${nickParent}".${columnName} = "${nick}"."${foreignKeyName}"`)
