@@ -4,7 +4,7 @@ module.exports = function (App, Config) {
     const db = knex({client: "pg"});
     const MODELS = App.models;
     const validOperators = ["gt", "gte", "lt", "lte", "between", "inq", "neq", "nin", "like", "ilike"];
-    const relationsSupported = ["belongsTo", "hasOne", "hasMany"];
+    const relationsSupported = ["belongsTo", "hasOne", "hasMany", "hasManyThrough"];
 
     // Validate if component is enable
     if(Config.disabled) return console.warn("Loopback-component-relation-filter is disabled");
@@ -84,8 +84,12 @@ module.exports = function (App, Config) {
 
                     let isDifferentSource = dataSource.connectionString != mainDataSource.connectionString;
                     let startLine = `join "${tableName}" as ${nick}`;
+                    let type = relation.type;
 
-                    switch (relation.type) {
+                    // Special types
+                    if(relation.through && type == "hasMany") type = "hasManyThrough"
+
+                    switch (type) {
                         case "belongsTo":
                             var tableIdName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, modelRelation) : getIdName(modelRelation);
                             var columnName = getRealNameOfColumn(relation.foreignKey, model);
@@ -97,7 +101,25 @@ module.exports = function (App, Config) {
                             var foreignKeyName = getRealNameOfColumn(relation.foreignKey, modelRelation);
                             mainQuery.joinRaw(`${isDifferentSource ? getDblink(foreignKeyName) : startLine} on "${nickParent}".${columnName} = "${nick}"."${foreignKeyName}"`)
                             break;
-                        default: return console.warn("Relation not supported, this component only support: " + relationsSupported);
+                        case "hasManyThrough":
+                            if(isDifferentSource) return console.warn(`"${type}" don't support different data source, if you need it, please report on github.`);
+                            
+                            // Through Join 
+                            var throughModel = MODELS[relation.through];
+                            var throughTable = getTableName(throughModel);
+                            var throughTableNick = `temp_table_${randomNumber()}`;
+                            var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, model) : idName;
+                            var foreignKeyName = getRealNameOfColumn(relation.foreignKey, throughModel);
+                            mainQuery.joinRaw(`join "${throughTable}" as ${throughTableNick} on "${nickParent}".${columnName} = "${throughTableNick}"."${foreignKeyName}"`)
+
+                            // Real Join
+                            var realModel = MODELS[relation.model];
+                            var realTable = getTableName(realModel);
+                            var keyThrough = getRealNameOfColumn(relation.keyThrough, throughModel);
+                            var realPrimaryKey = getIdName(realModel);
+                            mainQuery.joinRaw(`join "${realTable}" as ${nick} on "${throughTableNick}"."${keyThrough}" = "${nick}"."${realPrimaryKey}"`);
+                            break;
+                        default: return console.warn(`Relation "${type}" not supported, this component only support: ` + relationsSupported);
                     }
 
                     // Add in the array of relations 
