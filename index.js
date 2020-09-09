@@ -79,11 +79,11 @@ module.exports = function (App, Config) {
                             return p;
                         }, '');
 
-                        return `join dblink('dbname=${dataSource.database} port=${dataSource.port} host=${dataSource.host} user=${dataSource.user} password=${dataSource.password}', 'SELECT ${names} FROM ${tableName}') as ${nick}(${namesWithTypes})`
+                        return `left join dblink('dbname=${dataSource.database} port=${dataSource.port} host=${dataSource.host} user=${dataSource.user} password=${dataSource.password}', 'SELECT ${names} FROM ${tableName}') as ${nick}(${namesWithTypes})`
                     }
 
                     let isDifferentSource = dataSource.connectionString != mainDataSource.connectionString;
-                    let startLine = `join "${tableName}" as ${nick}`;
+                    let startLine = `left join "${tableName}" as ${nick}`;
                     let type = relation.type;
 
                     // Special types
@@ -110,14 +110,14 @@ module.exports = function (App, Config) {
                             var throughTableNick = `temp_table_${randomNumber()}`;
                             var columnName = relation.primaryKey ? getRealNameOfColumn(relation.primaryKey, model) : idName;
                             var foreignKeyName = getRealNameOfColumn(relation.foreignKey, throughModel);
-                            mainQuery.joinRaw(`join "${throughTable}" as ${throughTableNick} on "${nickParent}".${columnName} = "${throughTableNick}"."${foreignKeyName}"`)
+                            mainQuery.joinRaw(`left join "${throughTable}" as ${throughTableNick} on "${nickParent}".${columnName} = "${throughTableNick}"."${foreignKeyName}"`)
 
                             // Real Join
                             var realModel = MODELS[relation.model];
                             var realTable = getTableName(realModel);
                             var keyThrough = getRealNameOfColumn(relation.keyThrough, throughModel);
                             var realPrimaryKey = getIdName(realModel);
-                            mainQuery.joinRaw(`join "${realTable}" as ${nick} on "${throughTableNick}"."${keyThrough}" = "${nick}"."${realPrimaryKey}"`);
+                            mainQuery.joinRaw(`left join "${realTable}" as ${nick} on "${throughTableNick}"."${keyThrough}" = "${nick}"."${realPrimaryKey}"`);
                             break;
                         default: return console.warn(`Relation "${type}" not supported, this component only support: ` + relationsSupported);
                     }
